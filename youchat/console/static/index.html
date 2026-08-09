@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>天璇 Merak 控制台</title>
+<style>
+  :root { --bg:#0f1419; --panel:#1a2029; --border:#2a3441; --text:#e6edf3;
+          --accent:#4ea1ff; --danger:#ff5f5f; --ok:#3fb950; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--text); font-family:-apple-system,"Segoe UI",system-ui,sans-serif; }
+  header { display:flex; align-items:center; gap:20px; padding:14px 24px; border-bottom:1px solid var(--border); }
+  header h1 { font-size:18px; font-weight:600; }
+  nav { display:flex; gap:4px; }
+  nav button { background:none; border:none; color:var(--text); padding:8px 14px; cursor:pointer;
+               font-size:14px; border-radius:6px; opacity:.7; }
+  nav button.active { background:var(--panel); opacity:1; border-bottom:2px solid var(--accent); }
+  main { max-width:900px; margin:24px auto; padding:0 24px; }
+  section { display:none; } section.active { display:block; }
+  .card { background:var(--panel); border:1px solid var(--border); border-radius:10px; padding:18px; margin-bottom:16px; }
+  .card h3 { font-size:14px; margin-bottom:12px; color:var(--accent); }
+  .field { margin-bottom:12px; }
+  .field label { display:block; font-size:12px; color:#8b98a5; margin-bottom:4px; }
+  .field input, .field textarea, .field select { width:100%; background:#0d1117; border:1px solid var(--border);
+    color:var(--text); padding:8px 10px; border-radius:6px; font-size:13px; }
+  .field textarea { min-height:60px; font-family:ui-monospace,monospace; }
+  .row { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+  .btn { background:var(--accent); color:#fff; border:none; padding:9px 16px; border-radius:6px;
+         cursor:pointer; font-size:13px; font-weight:500; }
+  .btn.secondary { background:var(--panel); color:var(--text); border:1px solid var(--border); }
+  .btn.danger { background:var(--danger); }
+  .btn.small { padding:5px 10px; font-size:12px; }
+  #msg { display:none; padding:10px 14px; border-radius:6px; margin-bottom:14px; font-size:13px; }
+  #msg.ok { background:#132e1a; color:var(--ok); border:1px solid #1f4d2a; }
+  #msg.err { background:#3a1414; color:var(--danger); border:1px solid #5c1f1f; }
+  .list-item { display:flex; justify-content:space-between; align-items:center; padding:10px 12px;
+    border-bottom:1px solid var(--border); cursor:pointer; }
+  .list-item:hover { background:#1e2834; } .list-item.selected { background:#16283c; }
+  .taboo-card { border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:10px; position:relative; }
+  .taboo-card .remove { position:absolute; top:6px; right:8px; background:none; border:none; color:var(--danger); cursor:pointer; font-size:16px; }
+  .status-dot { display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:6px; }
+  .status-dot.on { background:var(--ok); } .status-dot.off { background:var(--border); }
+  .muted { color:#8b98a5; font-size:12px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>天璇 Merak 控制台</h1>
+  <nav>
+    <button class="active" data-tab="config">配置</button>
+    <button data-tab="characters">角色</button>
+    <button data-tab="memory">记忆</button>
+    <button data-tab="start">启动</button>
+  </nav>
+</header>
+<main>
+  <div id="msg"></div>
+
+  <!-- 配置 -->
+  <section id="tab-config" class="active">
+    <div class="card"><h3>模型</h3>
+      <div class="field"><label>base_url</label><input id="cfg-base_url"></div>
+      <div class="field"><label>api_key（API 密钥，sk- 开头）</label><input id="cfg-api_key" placeholder="粘贴你的 API 密钥" style="-webkit-text-security:disc;font-family:ui-monospace,monospace;"></div>
+      <div class="row">
+        <div class="field"><label>chat_model</label><input id="cfg-chat_model"></div>
+        <div class="field"><label>embedding_model</label><input id="cfg-embedding_model" placeholder="留空=纯hook; local:xxx 或云端模型"></div>
+      </div>
+    </div>
+    <div class="card"><h3>本地模型（Ollama）<span id="ollama-dot" style="display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--border);margin-left:8px;"></span></h3>
+      <p class="muted" style="margin-bottom:10px;">用本地大模型（Ollama），不依赖云端 API、零成本、隐私好。</p>
+      <div id="ollama-status" class="muted" style="margin-bottom:10px;">检测中...</div>
+      <div class="row">
+        <div class="field"><label>聊天模型</label><select id="ollama-chat"></select></div>
+        <div class="field"><label>embedding 模型</label><select id="ollama-embed"></select></div>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <button class="btn" onclick="applyOllama()">使用本地模型</button>
+        <button class="btn secondary" onclick="loadOllama()">重新检测</button>
+        <a class="muted" href="https://ollama.com/download" target="_blank" style="margin-left:auto;">未安装？去 ollama.com 下载</a>
+      </div>
+    </div>
+    <div class="card"><h3>存储</h3>
+      <div class="row">
+        <div class="field"><label>db_path</label><input id="cfg-db_path"></div>
+        <div class="field"><label>characters_dir</label><input id="cfg-characters_dir"></div>
+      </div>
+    </div>
+    <div class="card"><h3>引擎</h3>
+      <div class="row">
+        <div class="field"><label>episodic_buffer_size</label><input id="cfg-episodic_buffer_size" type="number"></div>
+        <div class="field"><label>compact_after</label><input id="cfg-compact_after" type="number"></div>
+      </div>
+      <div class="field"><label>max_recalled_memories</label><input id="cfg-max_recalled_memories" type="number"></div>
+    </div>
+    <div class="card"><h3>检索</h3>
+      <div class="row">
+        <div class="field"><label>vector_threshold</label><input id="cfg-vector_threshold" type="number" step="0.05"></div>
+        <div class="field"><label>semantic_slots</label><input id="cfg-semantic_slots" type="number"></div>
+      </div>
+      <div class="field"><label><input id="cfg-use_fuzzy_fallback" type="checkbox"> use_fuzzy_fallback（字符兜底）</label></div>
+    </div>
+    <div class="card"><h3>上下文预算</h3>
+      <div class="row">
+        <div class="field"><label>core</label><input id="cfg-core" type="number"></div>
+        <div class="field"><label>long_term</label><input id="cfg-long_term" type="number"></div>
+      </div>
+      <div class="row">
+        <div class="field"><label>short_term</label><input id="cfg-short_term" type="number"></div>
+        <div class="field"><label>per_entry_chars</label><input id="cfg-per_entry_chars" type="number"></div>
+      </div>
+    </div>
+    <div class="card"><h3>一致性</h3>
+      <div class="field"><label>checker</label><select id="cfg-checker"><option value="auto">auto（规则+LLM兜底）</option><option value="off">off</option></select></div>
+    </div>
+    <button class="btn" onclick="saveConfig()">保存配置</button>
+  </section>
+
+  <!-- 角色 -->
+  <section id="tab-characters">
+    <div class="row" style="grid-template-columns:1fr 2fr; align-items:start;">
+      <div class="card"><h3>角色列表</h3><div id="char-list"></div><button class="btn secondary small" style="margin-top:10px;" onclick="newCharacter()">+ 新建角色</button></div>
+      <div class="card"><h3 id="char-edit-title">编辑角色</h3>
+        <div class="field"><label>character_id（创建后不可改）</label><input id="char-id" disabled></div>
+        <div class="field"><label>name</label><input id="char-name"></div>
+        <div class="field"><label>personality</label><textarea id="char-personality"></textarea></div>
+        <div class="field"><label>speech_style</label><textarea id="char-speech_style"></textarea></div>
+        <div class="field"><label>background</label><textarea id="char-background"></textarea></div>
+        <div class="field"><label>worldview</label><textarea id="char-worldview"></textarea></div>
+        <div class="field"><label>reference_speech（参考说话文本，台词/对话样本，AI 提炼说话方式用）</label><textarea id="char-reference_speech"></textarea></div>
+        <div class="field"><label>taboos</label><div id="char-taboos"></div><button class="btn secondary small" onclick="addTaboo()">+ 添加禁忌</button></div>
+        <div style="display:flex; gap:8px;">
+          <button class="btn" onclick="saveCharacter()">保存</button>
+          <button class="btn danger" onclick="deleteCharacter()">删除</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;"><h3>从文本生成角色（AI 提炼）</h3>
+      <p class="muted" style="margin-bottom:10px;">粘贴或选择角色资料（Wiki 人设 / 剧情 / 台词），AI 自动提炼成标准角色档案。</p>
+      <div class="field"><label>角色资料文本（可粘多段）</label><textarea id="gen-text" placeholder="粘贴 Wiki 人设、剧情、台词等..."></textarea></div>
+      <div class="field"><label>或选择 .txt 文件（可多选）</label>
+        <input type="file" id="gen-files" accept=".txt" multiple>
+      </div>
+      <div class="field"><label>角色 ID（留空自动生成）</label><input id="gen-id" placeholder="如 yunli"></div>
+      <button class="btn" onclick="generateCharacter()">AI 提炼 → 预览</button>
+      <div id="gen-result" style="margin-top:14px;"></div>
+    </div>
+  </section>
+
+  <!-- 记忆 -->
+  <section id="tab-memory">
+    <div class="row" style="grid-template-columns:1fr 2fr; align-items:start;">
+      <div class="card"><h3>角色记忆库</h3><div id="mem-list"></div>
+        <p class="muted" style="margin-top:10px;">记忆在对话沉淀（compaction）后自动更新。</p>
+      </div>
+      <div class="card"><h3 id="mem-title">记忆沉淀库</h3>
+        <div style="display:flex; justify-content:flex-end; margin-bottom:10px;">
+          <button class="btn secondary small" onclick="loadMemory()">刷新</button>
+        </div>
+        <pre id="mem-content" style="white-space:pre-wrap; font-family:ui-monospace,monospace; font-size:13px; line-height:1.7; background:#0d1117; border:1px solid var(--border); border-radius:8px; padding:14px; max-height:60vh; overflow:auto; margin:0;"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- 启动 -->
+  <section id="tab-start">
+    <div class="card">
+      <h3>引擎状态 <span class="status-dot" id="run-dot"></span><span id="run-state">未运行</span></h3>
+      <div class="field"><label>选择角色</label><select id="start-role"></select></div>
+      <label style="font-size:13px; display:block; margin-bottom:12px;">
+        <input id="start-mock" type="checkbox"> 用 Mock LLM（不调真实 API）
+      </label>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" onclick="startEngine()">启动引擎</button>
+        <button class="btn secondary" onclick="stopEngine()">停止</button>
+      </div>
+      <p class="muted" style="margin-top:12px;">启动后引擎在后台运行，可在终端用 CLI 或切换 TUI 模式交互聊天（v1 不含网页聊天面板）。</p>
+    </div>
+    <div class="card"><h3>QQ 接入（NapCat）<span class="status-dot" id="qq-dot"></span><span id="qq-state">未运行</span></h3>
+      <div class="row">
+        <div class="field"><label>机器人 QQ 号 (bot_qq)</label><input id="qq-bot_qq" placeholder="NapCat 登录的号"></div>
+        <div class="field"><label>反向 WS 地址</label><input id="qq-ws_url" placeholder="ws://127.0.0.1:6700"></div>
+      </div>
+      <div class="field"><label>角色</label><select id="qq-role"></select></div>
+      <label style="font-size:13px; display:block; margin-bottom:12px;">
+        <input id="qq-mock" type="checkbox"> 用 Mock LLM（不调真实 API）
+      </label>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" onclick="startQQ()">启动 QQ 接入</button>
+        <button class="btn secondary" onclick="stopQQ()">停止</button>
+      </div>
+      <p class="muted" style="margin-top:12px;">@才回复，未@只进记忆。需先装好 <a href="/static/../qq-napcat-setup.md" target="_blank">NapCat 并开启反向 WS</a>。</p>
+    </div>
+    <div class="card"><h3>AI 朋友（1对1 私聊）<span class="status-dot" id="friend-dot"></span><span id="friend-state">未运行</span></h3>
+      <div class="field"><label>朋友角色（私聊时以这个人设陪你）</label><select id="friend-role"></select></div>
+      <div class="row">
+        <div class="field"><label>机器人 QQ 号 (bot_qq)</label><input id="friend-bot_qq" placeholder="NapCat 登录的号"></div>
+        <div class="field"><label>反向 WS 地址</label><input id="friend-ws_url" placeholder="ws://127.0.0.1:6700"></div>
+      </div>
+      <label style="font-size:13px; display:block; margin-bottom:12px;">
+        <input id="friend-mock" type="checkbox"> 用 Mock LLM（不调真实 API）
+      </label>
+      <div style="display:flex; gap:8px;">
+        <button class="btn" onclick="startFriend()">启动 AI 朋友</button>
+        <button class="btn secondary" onclick="stopFriend()">停止</button>
+      </div>
+      <p class="muted" style="margin-top:12px;">私聊机器人小号，它以"朋友"人设 1对1 陪你聊，记忆独立。与群聊 QQ 接入可同时运行。</p>
+    </div>
+    <div class="card"><h3>界面模式</h3>
+      <div class="field"><label>下次启动使用</label>
+        <select id="ui-mode"><option value="web">Web</option><option value="desktop">Desktop</option><option value="tui">TUI</option></select>
+      </div>
+      <button class="btn secondary" onclick="saveMode()">保存模式</button>
+      <p class="muted" style="margin-top:8px;">保存后重启 launcher（python -m youchat）生效。</p>
+    </div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let currentChar = null;
+
+function msg(text, ok) {
+  const el = $('msg');
+  el.textContent = text; el.className = ok ? 'ok' : 'err'; el.style.display = 'block';
+  setTimeout(() => el.style.display = 'none', 3500);
+}
+function showErr(res) {
+  if (res.errors && res.errors.length) msg('⚠️ ' + res.errors.join('；'), false);
+  else msg(res.error || '操作失败', false);
+}
+
+// ---- 导航 ----
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  document.querySelectorAll('nav button').forEach(x => x.classList.remove('active'));
+  document.querySelectorAll('section').forEach(x => x.classList.remove('active'));
+  b.classList.add('active');
+  $('tab-' + b.dataset.tab).classList.add('active');
+  if (b.dataset.tab === 'characters') loadCharacters();
+  if (b.dataset.tab === 'memory') loadMemory();
+  if (b.dataset.tab === 'start') loadStart();
+});
+
+// ---- 配置 ----
+async function loadConfig() {
+  const cfg = await (await fetch('/api/config')).json();
+  $('cfg-base_url').value = cfg.model.base_url;
+  $('cfg-api_key').value = cfg.model.api_key || '';
+  $('cfg-chat_model').value = cfg.model.chat_model;
+  $('cfg-embedding_model').value = cfg.model.embedding_model || '';
+  $('cfg-db_path').value = cfg.storage.db_path;
+  $('cfg-characters_dir').value = cfg.storage.characters_dir;
+  $('cfg-episodic_buffer_size').value = cfg.engine.episodic_buffer_size;
+  $('cfg-compact_after').value = cfg.engine.compact_after;
+  $('cfg-max_recalled_memories').value = cfg.engine.max_recalled_memories;
+  $('cfg-vector_threshold').value = cfg.retrieval.vector_threshold;
+  $('cfg-semantic_slots').value = cfg.retrieval.semantic_slots;
+  $('cfg-use_fuzzy_fallback').checked = !!cfg.retrieval.use_fuzzy_fallback;
+  $('cfg-core').value = cfg.context_budget.core;
+  $('cfg-long_term').value = cfg.context_budget.long_term;
+  $('cfg-short_term').value = cfg.context_budget.short_term;
+  $('cfg-per_entry_chars').value = cfg.context_budget.per_entry_chars;
+  $('cfg-checker').value = cfg.consistency.checker || 'auto';
+  loadOllama();
+}
+
+// ---- 本地模型（Ollama）----
+async function loadOllama() {
+  const el = $('ollama-status');
+  el.textContent = '检测中...';
+  $('ollama-dot').style.background = 'var(--border)';
+  try {
+    const s = await (await fetch('/api/ollama/status')).json();
+    if (!s.running) {
+      el.textContent = '⚠️ Ollama 未运行（先安装并启动：https://ollama.com/download）';
+      el.style.color = 'var(--danger)';
+      return;
+    }
+    $('ollama-dot').style.background = 'var(--ok)';
+    const ready = s.chat_model_ready ? s.chat_model : '(未装 ' + s.chat_model + ')';
+    const eready = s.embed_model_ready ? s.embed_model : '(未装 ' + s.embed_model + ')';
+    el.textContent = `✓ Ollama 运行中，已装 ${s.models.length} 个模型`;
+    el.style.color = '';
+    const models = s.models.length ? s.models : [s.chat_model, s.embed_model];
+    $('ollama-chat').innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+    $('ollama-embed').innerHTML = models.map(m => `<option value="${m}">${m}</option>`).join('');
+    if (s.chat_model_ready) $('ollama-chat').value = s.chat_model;
+    if (s.embed_model_ready) $('ollama-embed').value = s.embed_model;
+  } catch (e) {
+    el.textContent = '检测失败: ' + e;
+  }
+}
+async function applyOllama() {
+  const res = await (await fetch('/api/ollama/apply', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ chat_model: $('ollama-chat').value, embed_model: $('ollama-embed').value }) })).json();
+  res.ok ? (msg('已切换为本地模型 ✓ 重启引擎生效', true), loadConfig()) : showErr(res);
+}
+async function saveConfig() {
+  const num = id => Number($(id).value);
+  const body = {
+    model: { base_url: $('cfg-base_url').value, api_key: $('cfg-api_key').value, chat_model: $('cfg-chat_model').value, embedding_model: $('cfg-embedding_model').value },
+    storage: { db_path: $('cfg-db_path').value, characters_dir: $('cfg-characters_dir').value },
+    engine: { episodic_buffer_size: num('cfg-episodic_buffer_size'), compact_after: num('cfg-compact_after'), max_recalled_memories: num('cfg-max_recalled_memories') },
+    retrieval: { vector_threshold: Number($('cfg-vector_threshold').value), semantic_slots: num('cfg-semantic_slots'), use_fuzzy_fallback: $('cfg-use_fuzzy_fallback').checked },
+    context_budget: { core: num('cfg-core'), long_term: num('cfg-long_term'), short_term: num('cfg-short_term'), per_entry_chars: num('cfg-per_entry_chars') },
+    consistency: { checker: $('cfg-checker').value },
+  };
+  const res = await (await fetch('/api/config', { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(body) })).json();
+  res.ok ? msg('配置已保存 ✓', true) : showErr(res);
+}
+
+// ---- 角色 ----
+let taboos = [];
+async function loadCharacters() {
+  const list = $('char-list'); list.innerHTML = '';
+  const roles = await (await fetch('/api/characters')).json();
+  roles.forEach(r => {
+    const div = document.createElement('div');
+    div.className = 'list-item'; div.innerHTML = `<span><b>${r.name}</b> <span class="muted">(${r.character_id})</span></span>`;
+    div.onclick = () => { selectChar(r.character_id); document.querySelectorAll('.list-item').forEach(x => x.classList.remove('selected')); div.classList.add('selected'); };
+    list.appendChild(div);
+  });
+}
+function newCharacter() {
+  currentChar = null;
+  $('char-id').value = ''; $('char-id').disabled = false;
+  $('char-edit-title').textContent = '新建角色';
+  ['name','personality','speech_style','background','worldview','reference_speech'].forEach(k => $(`char-${k}`).value = '');
+  taboos = []; renderTaboos();
+}
+async function selectChar(cid) {
+  currentChar = cid;
+  const d = await (await fetch('/api/characters/' + cid)).json();
+  $('char-id').value = cid; $('char-id').disabled = true;
+  $('char-edit-title').textContent = '编辑 ' + cid;
+  ['name','personality','speech_style','background','worldview','reference_speech'].forEach(k => $(`char-${k}`).value = d[k] || '');
+  taboos = (d.taboos || []).map(t => ({ text: t.text || '', keywords: t.keywords || [], examples: t.examples || [] }));
+  renderTaboos();
+}
+function addTaboo() { taboos.push({ text:'', keywords:[], examples:[] }); renderTaboos(); }
+function renderTaboos() {
+  const el = $('char-taboos'); el.innerHTML = '';
+  taboos.forEach((t, i) => {
+    const card = document.createElement('div'); card.className = 'taboo-card';
+    card.innerHTML = `
+      <button class="remove" onclick="removeTaboo(${i})">×</button>
+      <div class="field"><label>text</label><input value="${esc(t.text)}" oninput="taboos[${i}].text=this.value"></div>
+      <div class="field"><label>keywords（逗号分隔）</label><input value="${esc(t.keywords.join(','))}" oninput="taboos[${i}].keywords=this.value.split(',').map(s=>s.trim()).filter(Boolean)"></div>
+      <div class="field"><label>examples（每行一个）</label><textarea oninput="taboos[${i}].examples=this.value.split('\\n').filter(Boolean)">${esc(t.examples.join('\n'))}</textarea></div>`;
+    el.appendChild(card);
+  });
+}
+function removeTaboo(i) { taboos.splice(i,1); renderTaboos(); }
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+async function saveCharacter() {
+  const cid = $('char-id').value.trim();
+  if (!cid) return msg('请填写 character_id', false);
+  const body = {
+    name: $('char-name').value, personality: $('char-personality').value, speech_style: $('char-speech_style').value,
+    background: $('char-background').value, worldview: $('char-worldview').value, reference_speech: $('char-reference_speech').value, taboos,
+  };
+  const res = await (await fetch('/api/characters/' + cid, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })).json();
+  res.ok ? (msg('角色已保存 ✓', true), loadCharacters()) : showErr(res);
+}
+async function deleteCharacter() {
+  const cid = $('char-id').value;
+  if (!cid || !confirm('删除角色 ' + cid + '？')) return;
+  const res = await (await fetch('/api/characters/' + cid, { method:'DELETE' })).json();
+  res.ok ? (msg('已删除', true), loadCharacters(), newCharacter()) : showErr(res);
+}
+
+// ---- 从文本生成角色（AI 提炼）----
+async function generateCharacter() {
+  const pasted = $('gen-text').value.trim();
+  const fileInput = $('gen-files');
+  let texts = pasted ? [pasted] : [];
+
+  // 读取选中的 .txt 文件
+  const files = fileInput.files || [];
+  for (const f of files) {
+    const text = await f.text();
+    if (text.trim()) texts.push(text.trim());
+  }
+  if (!texts.length) return msg('请粘贴或选择角色资料文本', false);
+
+  const btn = document.querySelector('button[onclick="generateCharacter()"]');
+  btn.disabled = true; btn.textContent = 'AI 提炼中...';
+  try {
+    const res = await (await fetch('/api/character/preview', { method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ texts, base_id: $('gen-id').value.trim() }) })).json();
+    if (!res.ok) { showErr(res); return; }
+    renderGeneratedProfile(res.profile);
+  } catch (e) {
+    msg('AI 提炼失败: ' + e, false);
+  } finally {
+    btn.disabled = false; btn.textContent = 'AI 提炼 → 预览';
+  }
+}
+function renderGeneratedProfile(p) {
+  const el = $('gen-result');
+  const taboos = (p.taboos || []).map((t, i) =>
+    `<div class="taboo-card"><button class="remove" onclick="this.parentElement.remove()">×</button>
+       <div class="field"><label>text</label><input value="${esc(t.text)}"></div>
+       <div class="field"><label>keywords（逗号分隔）</label><input value="${esc((t.keywords||[]).join(','))}"></div>
+       <div class="field"><label>examples（每行一个）</label><textarea>${esc((t.examples||[]).join('\n'))}</textarea></div>
+     </div>`).join('');
+  el.innerHTML = `
+    <h3 style="color:var(--ok); margin-bottom:10px;">✓ AI 提炼完成，请确认</h3>
+    <div class="field"><label>character_id</label><input id="genp-id" value="${esc(p.character_id)}"></div>
+    <div class="field"><label>name</label><input id="genp-name" value="${esc(p.name)}"></div>
+    <div class="field"><label>personality</label><textarea id="genp-personality">${esc(p.personality)}</textarea></div>
+    <div class="field"><label>speech_style</label><textarea id="genp-speech_style">${esc(p.speech_style)}</textarea></div>
+    <div class="field"><label>background</label><textarea id="genp-background">${esc(p.background)}</textarea></div>
+    <div class="field"><label>worldview</label><textarea id="genp-worldview">${esc(p.worldview)}</textarea></div>
+    <div class="field"><label>taboos</label><div id="genp-taboos">${taboos}</div></div>
+    <div style="display:flex; gap:8px; margin-top:10px;">
+      <button class="btn" onclick="saveGenerated()">保存为角色</button>
+      <button class="btn secondary" onclick="$('gen-result').innerHTML=''">取消</button>
+    </div>`;
+  el.scrollIntoView({ behavior:'smooth' });
+}
+function saveGenerated() {
+  const cid = $('genp-id').value.trim();
+  if (!cid) return msg('请填写 character_id', false);
+  const taboos = Array.from(document.querySelectorAll('#genp-taboos .taboo-card')).map(card => {
+    const inputs = card.querySelectorAll('input, textarea');
+    const t = { text: inputs[0].value.trim(), keywords: [], examples: [] };
+    if (inputs[1].value.trim()) t.keywords = inputs[1].value.split(',').map(s=>s.trim()).filter(Boolean);
+    if (inputs[2].value.trim()) t.examples = inputs[2].value.split('\n').filter(s=>s.trim());
+    return t;
+  }).filter(t => t.text);
+  const body = {
+    character_id: cid, name: $('genp-name').value, personality: $('genp-personality').value,
+    speech_style: $('genp-speech_style').value, background: $('genp-background').value,
+    worldview: $('genp-worldview').value, taboos,
+  };
+  fetch('/api/characters/' + cid, { method:'PUT', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+    .then(r => r.json())
+    .then(res => {
+      res.ok ? (msg('角色已保存 ✓', true), $('gen-result').innerHTML='', $('gen-text').value='', $('gen-files').value='', loadCharacters(), selectChar(cid)) : showErr(res);
+    });
+}
+
+// ---- 记忆 ----
+let memList = [];
+let currentMem = null;
+async function loadMemory() {
+  const list = $('mem-list'); list.innerHTML = '';
+  memList = await (await fetch('/api/memory')).json();
+  if (!memList.length) { $('mem-content').textContent = '（暂无角色）'; return; }
+  memList.forEach(m => {
+    const div = document.createElement('div');
+    div.className = 'list-item';
+    const badge = m.exists ? '<span style="color:var(--ok);">●</span>' : '<span style="color:var(--border);">○</span>';
+    div.innerHTML = `${badge} <span><b>${m.name}</b> <span class="muted">(${m.character_id})${m.exists ? ' · ' + Math.max(1, Math.round(m.size/100)/10) + 'KB' : ' · 无记忆'}</span></span>`;
+    div.onclick = () => { currentMem = m.character_id; document.querySelectorAll('#mem-list .list-item').forEach(x => x.classList.remove('selected')); div.classList.add('selected'); showMemory(m.character_id); };
+    list.appendChild(div);
+  });
+  // 默认选中第一个有记忆的角色
+  const first = memList.find(m => m.exists) || memList[0];
+  currentMem = first.character_id;
+  const items = list.querySelectorAll('.list-item');
+  const idx = memList.indexOf(first);
+  if (items[idx]) items[idx].classList.add('selected');
+  showMemory(first.character_id);
+}
+async function showMemory(cid) {
+  const res = await (await fetch('/api/memory/' + cid)).json();
+  const title = memList.find(m => m.character_id === cid);
+  $('mem-title').textContent = title ? title.name + ' 的记忆沉淀库' : cid + ' 的记忆沉淀库';
+  if (res.ok) $('mem-content').textContent = res.content;
+  else { $('mem-content').textContent = '⚠️ ' + (res.error || '读取失败'); }
+}
+
+// ---- 启动 ----
+async function loadStart() {
+  const roles = await (await fetch('/api/characters')).json();
+  const sel = $('start-role');
+  sel.innerHTML = roles.map(r => `<option value="${r.character_id}">${r.name} (${r.character_id})</option>`).join('');
+  const settings = await (await fetch('/api/settings')).json();
+  $('ui-mode').value = settings.ui?.mode || 'web';
+  const status = await (await fetch('/api/runtime/status')).json();
+  renderStatus(status);
+  loadQQ();
+  loadFriend();
+}
+function renderStatus(s) {
+  $('run-dot').className = 'status-dot ' + (s.running ? 'on' : 'off');
+  $('run-state').textContent = s.running ? '运行中' : '未运行';
+}
+async function startEngine() {
+  const res = await (await fetch('/api/start', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ role: $('start-role').value, mock: $('start-mock').checked }) })).json();
+  res.ok ? msg('引擎已启动 ✓', true) : showErr(res);
+  loadStart();
+}
+async function stopEngine() {
+  await fetch('/api/runtime/stop', { method:'POST' });
+  msg('已停止', true); loadStart();
+}
+async function saveMode() {
+  const res = await (await fetch('/api/settings', { method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ mode: $('ui-mode').value }) })).json();
+  res.ok ? msg('模式已保存 ✓ 重启生效', true) : showErr(res);
+}
+
+// ---- QQ 接入 ----
+async function loadQQ() {
+  const roles = await (await fetch('/api/characters')).json();
+  $('qq-role').innerHTML = roles.map(r => `<option value="${r.character_id}">${r.name} (${r.character_id})</option>`).join('');
+  const settings = await (await fetch('/api/settings')).json();
+  const qq = settings.qq || {};
+  if (qq.bot_qq) $('qq-bot_qq').value = qq.bot_qq;
+  if (qq.ws_url) $('qq-ws_url').value = qq.ws_url;
+  if (qq.role) $('qq-role').value = qq.role;
+  renderQQStatus(await (await fetch('/api/qq/status')).json());
+}
+function renderQQStatus(s) {
+  $('qq-dot').className = 'status-dot ' + (s.running ? 'on' : 'off');
+  $('qq-state').textContent = s.running ? `运行中 (${s.role || ''})` : '未运行';
+}
+async function startQQ() {
+  const res = await (await fetch('/api/qq/start', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ role: $('qq-role').value, bot_qq: $('qq-bot_qq').value.trim(), ws_url: $('qq-ws_url').value.trim(), mock: $('qq-mock').checked }) })).json();
+  res.ok ? msg('QQ 接入已启动 ✓', true) : showErr(res);
+  renderQQStatus(await (await fetch('/api/qq/status')).json());
+}
+async function stopQQ() {
+  await fetch('/api/qq/stop', { method:'POST' });
+  msg('QQ 接入已停止', true);
+  renderQQStatus(await (await fetch('/api/qq/status')).json());
+}
+
+// ---- AI 朋友（私聊）----
+async function loadFriend() {
+  const roles = await (await fetch('/api/characters')).json();
+  $('friend-role').innerHTML = roles.map(r => `<option value="${r.character_id}">${r.name} (${r.character_id})</option>`).join('');
+  const settings = await (await fetch('/api/settings')).json();
+  const qq = settings.qq || {};
+  if (qq.friend_role) $('friend-role').value = qq.friend_role;
+  if (qq.bot_qq) $('friend-bot_qq').value = qq.bot_qq;
+  if (qq.ws_url) $('friend-ws_url').value = qq.ws_url;
+  renderFriendStatus(await (await fetch('/api/friend/status')).json());
+}
+function renderFriendStatus(s) {
+  $('friend-dot').className = 'status-dot ' + (s.running ? 'on' : 'off');
+  $('friend-state').textContent = s.running ? `运行中 (${s.role || ''})` : '未运行';
+}
+async function startFriend() {
+  const res = await (await fetch('/api/friend/start', { method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({ role: $('friend-role').value, bot_qq: $('friend-bot_qq').value.trim(), ws_url: $('friend-ws_url').value.trim(), mock: $('friend-mock').checked }) })).json();
+  res.ok ? msg('AI 朋友已启动 ✓', true) : showErr(res);
+  renderFriendStatus(await (await fetch('/api/friend/status')).json());
+}
+async function stopFriend() {
+  await fetch('/api/friend/stop', { method:'POST' });
+  msg('AI 朋友已停止', true);
+  renderFriendStatus(await (await fetch('/api/friend/status')).json());
+}
+
+// init
+loadConfig(); loadStart();
+setInterval(async () => { const s = await (await fetch('/api/runtime/status')).json(); renderStatus(s); }, 2000);
+</script>
+</body>
+</html>

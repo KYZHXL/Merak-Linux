@@ -1,0 +1,28 @@
+model:
+  base_url: https://api.deepseek.com/v1
+  api_key: ''                        # 通过 merak-env.sh 的 YOUNCHAT_API_KEY 注入
+  chat_model: deepseek-chat
+  embedding_model: ''                # 2核4G 服务器不开本地 embedding（纯 hook 检索）
+storage:
+  db_path: data/youchat.db
+  characters_dir: characters
+engine:
+  episodic_buffer_size: 24
+  compact_after: 24
+  max_recalled_memories: 5
+retrieval:
+  vector_threshold: 0.45
+  semantic_slots: 2
+  use_fuzzy_fallback: false
+context_budget:
+  core: 900
+  long_term: 1000
+  short_term: 1500
+  per_entry_chars: 120
+consistency:
+  checker: auto
+
+speech_style:
+  rebuild: compact    # 说话风格提炼时机: manual(手动) / periodic(定期) / compact(随沉淀增量)
+  max_corpus: 200     # 语料上限条数
+  target_chars: 500   # 风格档案目标字数

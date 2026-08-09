@@ -1,0 +1,19 @@
+[Unit]
+Description=Merak AI Chat Bot (Linux server)
+After=docker.service network.target
+Wants=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/merak
+EnvironmentFile=/opt/merak/deploy/merak-env.sh
+ExecStart=/opt/merak/venv/bin/python server.py
+Restart=always
+RestartSec=5
+User=merak
+# 2核4G 限制，防资源耗尽
+MemoryMax=3500M
+CPUQuota=190%
+
+[Install]
+WantedBy=multi-user.target

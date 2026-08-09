@@ -1,0 +1,14 @@
+# 运行时数据（首次启动生成）
+youchat/data/
+youchat/settings.json
+
+# 缓存
+__pycache__/
+*.pyc
+*.pyo
+
+# 虚拟环境
+venv/
+
+# 系统
+.DS_Store
