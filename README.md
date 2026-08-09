@@ -94,10 +94,12 @@ systemctl enable merak      # 开机自启（setup.sh 已启用）
 
 ## 常见问题
 
+> 🚨 **部署遇到问题？先看 [《部署排障指南》](docs/DEPLOY_TROUBLESHOOTING.md)** ——记录了所有真实踩坑与解法（含最关键的"NapCat 必须设 Token + Host 0.0.0.0"）。
+
 | 问题 | 处理 |
 |---|---|
-| 机器人收不到消息 | `docker logs -f napcat` 看是否登录；确认反向 WS 配了 Port 6700 |
-| 服务一直重启 | `journalctl -u merak -f` 看报错；确认 merak-env.sh 的 key 填了 |
+| 机器人收不到消息 | **NapCat 反向 WS 必须设 Token + Host 0.0.0.0 + Port 6700**（详见排障指南） |
+| 服务一直重启 | `journalctl -u merak -f` 看报错；确认 merak-env.sh 的 key 填了（**别复制打码后的省略号**） |
 | NapCat 面板进不去 | 确认容器在跑：`docker ps`；token 在 `docker logs napcat` |
 | 服务器内存爆 | 本版已禁用本地模型/embedding，若仍高看是否多开进程 |
 | 换 API 模型 | 改 merak-env.sh 的 key，config.yaml 的 base_url/chat_model |

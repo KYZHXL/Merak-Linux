@@ -111,7 +111,7 @@ def auto_connect_qq() -> bool:
     sys.path.insert(0, str(REPO))
     from youchat.console.controller import AppController
 
-    ctrl = AppController(REPO)
+    ctrl = AppController()  # 默认 pkg_root = youchat/ 包目录（config.yaml 所在）
     res = ctrl.start_qq(role, bot_qq, ws_url)
     if res.get("ok"):
         print(f"  ✓ QQ 机器人已启动（{ws_url}，角色 {role}）")
@@ -143,7 +143,7 @@ def main() -> int:
     from youchat.console.web import create_app, main as web_main
     from youchat.console.controller import AppController
 
-    ctrl = AppController(REPO)
+    ctrl = AppController()  # 默认 pkg_root = youchat/ 包目录（config.yaml 所在）
     web_main(ctrl, host="0.0.0.0", port=MERAK_PORT)
     return 0
 
